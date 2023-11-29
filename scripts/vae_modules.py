@@ -4,6 +4,7 @@ import torch.nn as nn
 from torch.distributions import Normal, kl
 from sklearn.cluster import KMeans
 from numpy.linalg import inv
+import pickle
 
 
 class VAE(nn.Module):
@@ -83,6 +84,8 @@ class RBF:
         self.compute_gram_matrix()
         self.train_weights()
 
+        self.parameters = {"centers": self.centers, "weights": self.weights, "m_gram": self.m_gram}
+
     def kmeans(self):
         kmeans = KMeans(n_clusters=self.n_clusters, random_state=0, n_init="auto").fit(self.z_array)
         self.centers = kmeans.cluster_centers_
@@ -109,10 +112,10 @@ class RBF:
         return y
 
     def save_parameters(self):
-        np.save("rbf_parameters", self.parameters)
+        np.savez('rbf_parameters.npz', **self.parameters)
 
     def load_parameters(self):
-        self.parameters = np.load("rbf_parameters")
+        self.parameters = np.load("rbf_parameters.npz")
         self.centers = self.parameters["centers"]
         self.weights = self.parameters["weights"]
         self.m_gram = self.parameters["m_gram"]
