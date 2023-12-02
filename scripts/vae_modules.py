@@ -67,7 +67,7 @@ class VAE(nn.Module):
 
 class RBF:
 
-    def __init__(self, z_array, latent_dim=2, kernels=500):
+    def __init__(self, z_array, latent_dim=2, kernels=500, gamma=1):
         # radial basis function
         self.z_array = z_array
         self.n_data = self.z_array.shape[0]
@@ -75,7 +75,7 @@ class RBF:
         self.centers = np.zeros([self.n_clusters, latent_dim])
         self.weights = np.zeros(self.n_clusters)
         self.m_gram = np.zeros([self.n_data, self.n_clusters])
-        self.gamma = 1
+        self.gamma = gamma
 
         self.parameters = {"centers": self.centers, "weights": self.weights, "m_gram": self.m_gram}
 
@@ -111,11 +111,27 @@ class RBF:
         y = sum(self.weights * exp_vec)
         return y
 
-    def save_parameters(self):
-        np.savez('rbf_parameters.npz', **self.parameters)
+    def gradient(self, z):
+        exp_vec = np.zeros(self.n_clusters)
+        exp_dz1 = np.zeros(self.n_clusters)
+        exp_dz2 = np.zeros(self.n_clusters)
+        for it_clusters in range(0, self.n_clusters):
+            distance = np.sqrt(sum((z - self.centers[it_clusters, :])**2))
+            expo = np.exp(-self.gamma*distance)
+            exp_vec[it_clusters] = expo
+            exp_dz1[it_clusters] = - self.gamma * (z[0] - self.centers[it_clusters, 0])/(distance + 1e-6)
+            exp_dz2[it_clusters] = - self.gamma * (z[1] - self.centers[it_clusters, 1])/(distance + 1e-6)
+        y1 = sum(self.weights * exp_vec * exp_dz1)
+        y2 = sum(self.weights * exp_vec * exp_dz2)
+        return np.array([y1, y2])
 
-    def load_parameters(self):
-        self.parameters = np.load("rbf_parameters.npz")
+    def save_parameters(self, name):
+        path = "rbf_networks/" + name
+        np.savez(path, **self.parameters)
+
+    def load_parameters(self, name):
+        path = "rbf_networks/" + name + ".npz"
+        self.parameters = np.load(path)
         self.centers = self.parameters["centers"]
         self.weights = self.parameters["weights"]
         self.m_gram = self.parameters["m_gram"]
